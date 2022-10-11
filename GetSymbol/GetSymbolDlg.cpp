@@ -27,6 +27,7 @@ enum LIST_COLUMNS {
 TCHAR szSymUrl[MAX_PATH];
 
 DWORD WINAPI StartProc(LPVOID lp);
+DWORD WINAPI ExitProc(LPVOID lp);
 void FileSearch(CString strPath);
 void GetPDB(CString szFilePath);
 BOOL isPE(CString szFilePath);
@@ -34,6 +35,7 @@ DWORD WINAPI SymCheckThread(LPVOID lp);
 char* strline(char* szStr, char* szLine);
 
 DWORD g_dwThreadRunningCount;
+HANDLE g_hMainThread;
 
 // CAboutDlg dialog used for App About
 
@@ -77,6 +79,7 @@ CGetSymbolDlg::CGetSymbolDlg(CWnd* pParent /*=NULL*/)
 	, m_DestPath(_T("c:\\symbols"))
 {
 	m_bBusy = FALSE;
+	m_bExitPending = FALSE;
 	m_ThreadCount = 10;
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -224,7 +227,17 @@ BOOL CGetSymbolDlg::OnInitDialog()
 	CheckRadioButton(IDC_RADIO_MS, IDC_RADIO_CITRIX, IDC_RADIO_MS);
 	_tcscpy_s(szSymUrl, MS_SYMBOL_SERVER);
 
-	
+	int widths[2];
+	m_StatusBar.Create(WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, IDC_STATUSBAR);
+
+	widths[0] = 100;
+	widths[1] = 600;
+
+	m_StatusBar.SetParts(2, widths);
+
+	m_StatusBar.SetText(_T(" Status "), 0, 0);
+	m_StatusBar.SetText(_T(" Ready"), 1, 0);
+
 	CreateThread(0, 0, UpdateCheckThread, 0, 0, 0);
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -283,13 +296,33 @@ HCURSOR CGetSymbolDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-
-
 void CGetSymbolDlg::OnBnClickedBtnExit()
 {
-	if (m_bBusy)
+	if (m_bExitPending) {
 		return;
+	}
+	
+	if (AfxMessageBox(L"Really want to exit?", MB_YESNO) == IDYES) {
+		m_bExitPending = TRUE;
+		HANDLE hExitThread = CreateThread(NULL, 0, ExitProc, NULL, 0, NULL);
+		CloseHandle(hExitThread);
+	}
+}
 
+void CGetSymbolDlg::Close() {
+	CDialogEx::OnCancel();
+}
+
+DWORD WINAPI ExitProc(LPVOID lp) {
+	SuspendThread(g_hMainThread);
+	pDlg->m_StatusBar.SetText(_T(" Closing... Waiting for current tasks are completed..."), 1, 0);
+	while (TRUE)
+	{
+		if (g_dwThreadRunningCount == 0)
+			break;
+		Sleep(300);
+	}
+	CloseHandle(g_hMainThread);
 	DeleteFile(_T("dbghelp.dll"));
 	DeleteFile(_T("symbolcheck.dll"));
 	DeleteFile(_T("symchk.exe"));
@@ -298,9 +331,9 @@ void CGetSymbolDlg::OnBnClickedBtnExit()
 	DeleteFile(_T("msvcrt.dll"));
 	DeleteFile(_T("symsrv.dll"));
 	DeleteFile(_T("symsrv.yes"));
-	CDialogEx::OnCancel();
+	pDlg->Close();
+	return 0;
 }
-
 
 BOOL CGetSymbolDlg::PreTranslateMessage(MSG* pMsg)
 {
@@ -345,7 +378,6 @@ void CGetSymbolDlg::OnBnClickedBtnSrc()
 	}
 }
 
-
 void CGetSymbolDlg::OnBnClickedBtnDest()
 {
 	ITEMIDLIST		*pidlBrowse;
@@ -374,21 +406,34 @@ void CGetSymbolDlg::OnBnClickedBtnDest()
 
 void CGetSymbolDlg::OnBnClickedBtnStart()
 {
-	if (m_bBusy)
+	if (m_bBusy) {
+		if (!m_bPaused) {
+			m_bPaused = TRUE;
+			SuspendThread(g_hMainThread);
+			pDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Resume");
+			pDlg->m_StatusBar.SetText(_T(" Paused"), 1, 0);
+		}
+		else {
+			m_bPaused = FALSE;
+			ResumeThread(g_hMainThread);
+			pDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Pause");
+			pDlg->m_StatusBar.SetText(_T(" Downloading..."), 1, 0);
+		}
 		return;
-
+	}
+		
 	UpdateData(TRUE);
 	m_List.DeleteAllItems();
 
-	HANDLE hThread = CreateThread(NULL, 0, StartProc, NULL, 0, NULL);
-	CloseHandle(hThread);	
+	g_hMainThread = CreateThread(NULL, 0, StartProc, NULL, 0, NULL);
 }
 
 DWORD WINAPI StartProc(LPVOID lp)
 {
 	pDlg->m_bBusy = TRUE;
-	pDlg->GetDlgItem(ID_BTN_START)->EnableWindow(FALSE);
-	pDlg->GetDlgItem(ID_BTN_EXIT)->EnableWindow(FALSE);
+	pDlg->m_bPaused = FALSE;
+	pDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Pause");
+	pDlg->m_StatusBar.SetText(_T(" Downloading..."), 1, 0);
 
 	pDlg->m_SuccCount = pDlg->m_FailCount = g_dwThreadRunningCount = 0;
 
@@ -407,8 +452,9 @@ DWORD WINAPI StartProc(LPVOID lp)
 	AfxMessageBox(str);
 
 	pDlg->m_bBusy = FALSE;
-	pDlg->GetDlgItem(ID_BTN_START)->EnableWindow(TRUE);
-	pDlg->GetDlgItem(ID_BTN_EXIT)->EnableWindow(TRUE);
+	pDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Start");
+	pDlg->m_StatusBar.SetText(_T(" Download completed"), 1, 0);
+
 	return 0;
 }
 
@@ -456,6 +502,11 @@ void FileSearch(CString strPath)
 
 void GetPDB(CString szFilePath)
 {
+	while (g_dwThreadRunningCount > pDlg->m_ThreadCount)
+	{
+		Sleep(20);
+	}
+
 	TCHAR szText[200];
 	LV_ITEM lvitem;
 	lvitem.mask = LVIF_TEXT | LVIF_IMAGE | LVIF_STATE;
@@ -472,16 +523,10 @@ void GetPDB(CString szFilePath)
 	pDlg->m_List.SetItemData(nIndex, nIndex);
 
 	pDlg->m_List.SetItemText(nIndex, COLUMN_SRCFILE, szFilePath);
-	pDlg->m_List.SetItemText(nIndex, COLUMN_STAT, _T("Checking..."));
-
 	pDlg->m_List.EnsureVisible(nIndex, FALSE);
 
-	while (g_dwThreadRunningCount > pDlg->m_ThreadCount)
-	{
-		Sleep(20);
-	} 
-
 	InterlockedIncrement((LONG volatile *)&g_dwThreadRunningCount);
+	pDlg->m_List.SetItemText(nIndex, COLUMN_STAT, _T("Checking..."));
 	HANDLE hProc = CreateThread(0, 0, SymCheckThread, (LPVOID)nIndex, 0, 0);
 	CloseHandle(hProc);	
 }

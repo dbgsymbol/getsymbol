@@ -11,10 +11,10 @@ class CGetSymbolDlg : public CDialogEx
 {
 public:
 	BOOL	m_bBusy;
-
+	BOOL	m_bPaused;
+	BOOL	m_bExitPending;
 	DWORD	m_SuccCount;
 	DWORD	m_FailCount;
-
 // Construction
 public:
 	CGetSymbolDlg(CWnd* pParent = NULL);	// standard constructor
@@ -45,11 +45,13 @@ public:
 	afx_msg void OnBnClickedBtnSrc();
 	afx_msg void OnBnClickedBtnDest();
 	CListCtrl m_List;
+	CStatusBarCtrl	m_StatusBar;
 	afx_msg void OnBnClickedBtnStart();
-//	afx_msg void OnColumnclickList(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnColumnclickList(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnBnClickedRadioMs();
 	afx_msg void OnBnClickedRadioGoogle();
 	afx_msg void OnBnClickedRadioMozilla();
 	afx_msg void OnBnClickedRadioCitrix();
+
+	void Close();
 };

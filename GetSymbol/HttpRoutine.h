@@ -9,7 +9,7 @@
 #pragma comment(lib, "winhttp.lib")
 
 #define APP_NAME L"GetSymbol"
-#define APP_VERSION L"1.0.0"
+#define APP_VERSION L"1.0.1"
 
 #define UPDATE_CHECK_URL L"https://dbgsymbol.com/version"
 #define WEBSITE_URL L"https://dbgsymbol.com"
