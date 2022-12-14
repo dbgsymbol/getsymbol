@@ -3,7 +3,7 @@
 Version: 2.0.0 <br>
 First release: 30 September 2022 <br>
 Latest release: 13 December 2022 <br>
-Platform architecture: x64/arm64 <br>
+Platform architecture: x64 <br>
 Supported OS: Windows 8.1, 10, 11 <br>
 
 ## Description
