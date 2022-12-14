@@ -19,10 +19,6 @@ enum LIST_COLUMNS {
 
 #define COLUMN_COUNT		(COLUMN_STAT + 1)
 
-#define MS_SYMBOL_SERVER			_T("http://msdl.microsoft.com/download/symbols")
-#define MOZILLA_SYMBOL_SERVER		_T("http://symbols.mozilla.org/firefox")
-#define GOOGLE_SYMBOL_SERVER		_T("https://chromium-browser-symsrv.commondatastorage.googleapis.com/tmpq4t67i74")
-#define CITRIX_SYMBOL_SERVER		_T("http://ctxsym.citrix.com/symbols")
 
 TCHAR szSymUrl[MAX_PATH];
 
@@ -32,10 +28,6 @@ void FileSearch(CString strPath);
 void GetPDB(CString szFilePath);
 BOOL isPE(CString szFilePath);
 DWORD WINAPI SymCheckThread(LPVOID lp);
-char* strline(char* szStr, char* szLine);
-
-DWORD g_dwThreadRunningCount;
-HANDLE g_hMainThread;
 
 // CAboutDlg dialog used for App About
 
@@ -79,9 +71,9 @@ CGetSymbolDlg::CGetSymbolDlg(CWnd* pParent /*=NULL*/)
 	, m_DestPath(_T("c:\\symbols"))
 {
 	m_bBusy = FALSE;
-	m_bExitPending = FALSE;
 	m_ThreadCount = 10;
-	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	m_nThreadRunningCount = 0;
+	m_hMainThread = NULL;
 }
 
 void CGetSymbolDlg::DoDataExchange(CDataExchange* pDX)
@@ -102,86 +94,16 @@ BEGIN_MESSAGE_MAP(CGetSymbolDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_SRC, &CGetSymbolDlg::OnBnClickedBtnSrc)
 	ON_BN_CLICKED(IDC_BTN_DEST, &CGetSymbolDlg::OnBnClickedBtnDest)
 	ON_BN_CLICKED(ID_BTN_START, &CGetSymbolDlg::OnBnClickedBtnStart)
-//	ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST, &CGetSymbolDlg::OnColumnclickList)
-ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST, &CGetSymbolDlg::OnColumnclickList)
-ON_BN_CLICKED(IDC_RADIO_MS, &CGetSymbolDlg::OnBnClickedRadioMs)
-ON_BN_CLICKED(IDC_RADIO_GOOGLE, &CGetSymbolDlg::OnBnClickedRadioGoogle)
-ON_BN_CLICKED(IDC_RADIO_MOZILLA, &CGetSymbolDlg::OnBnClickedRadioMozilla)
-ON_BN_CLICKED(IDC_RADIO_CITRIX, &CGetSymbolDlg::OnBnClickedRadioCitrix)
+
+	ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST, &CGetSymbolDlg::OnColumnclickList)
+	ON_BN_CLICKED(IDC_RADIO_MS, &CGetSymbolDlg::OnBnClickedRadioMs)
+	ON_BN_CLICKED(IDC_RADIO_GOOGLE, &CGetSymbolDlg::OnBnClickedRadioGoogle)
+	ON_BN_CLICKED(IDC_RADIO_MOZILLA, &CGetSymbolDlg::OnBnClickedRadioMozilla)
+	ON_BN_CLICKED(IDC_RADIO_CITRIX, &CGetSymbolDlg::OnBnClickedRadioCitrix)
 END_MESSAGE_MAP()
 
 
 // CGetSymbolDlg message handlers
-
-void SplitString(TCHAR* string, TCHAR spliter, TCHAR* first_part, TCHAR* second_part) {
-	
-	wcscpy(first_part, string);
-	TCHAR* ptr = wcschr(first_part, spliter);
-	*ptr = L'\0x0';
-
-	ptr = wcschr(string, spliter);
-	wcscpy(second_part, ptr + 1);
-}
-
-DWORD WINAPI UpdateCheckThread(LPVOID lp) {
-
-	ULONG status;
-
-	TCHAR * lpStringBuffer = NULL;
-
-	status = BeginDownload(UPDATE_CHECK_URL, NULL, &lpStringBuffer);
-	
-	if (status != ERROR_SUCCESS) {
-		return status;
-	}
-
-	TCHAR lpszVersionInfo[MAX_PATH];
-	TCHAR lpszUpdateURL[MAX_PATH];
-
-	RtlZeroMemory(lpszVersionInfo, sizeof(lpszVersionInfo));
-	RtlZeroMemory(lpszUpdateURL, sizeof(lpszUpdateURL));
-
-	SplitString(lpStringBuffer, L'|', lpszVersionInfo, lpszUpdateURL);
-
-	TCHAR lpszAppNameVersion[MAX_PATH];
-	wsprintf(lpszAppNameVersion, L"%s %s", APP_NAME, APP_VERSION);
-
-	if (wcscmp(lpszVersionInfo, lpszAppNameVersion) > 0) {
-		TCHAR msg[MAX_PATH] = L"Update available. Download and install now?\r\n\r\n";
-		wcscat(msg, lpszVersionInfo);
-		
-		if (MessageBoxW(0, msg, APP_NAME, MB_YESNO | MB_ICONINFORMATION) == IDYES) {
-			TCHAR szModuleFileName[MAX_PATH];
-			TCHAR szNewFileName[MAX_PATH];
-			GetModuleFileName(NULL, szModuleFileName, MAX_PATH);
-			wsprintf(szNewFileName, L"%s%s", szModuleFileName, L".tmp");
-
-			DeleteFile(szNewFileName);
-			MoveFile(szModuleFileName, szNewFileName);
-
-			HANDLE hFile =  CreateFile(szModuleFileName, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, NULL);
-
-			if (hFile != INVALID_HANDLE_VALUE)
-			{
-				BeginDownload(lpszUpdateURL, hFile, NULL);
-				CloseHandle(hFile);
-
-				STARTUPINFO si;
-				PROCESS_INFORMATION pi;
-
-				ZeroMemory(&si, sizeof(si));
-				si.cb = sizeof(si);
-				ZeroMemory(&pi, sizeof(pi));
-				CreateProcess(NULL, szModuleFileName, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
-
-				ExitProcess(0);
-			}
-		}
-	}
-
-	LocalFree(lpStringBuffer);
-	return 0;
-} 
 
 BOOL CGetSymbolDlg::OnInitDialog()
 { 
@@ -213,12 +135,7 @@ BOOL CGetSymbolDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-
-	TCHAR lpszAppNameVersion[MAX_PATH];
-	wsprintf(lpszAppNameVersion, L"%s %s", APP_NAME, APP_VERSION);
-
-	SetWindowText(lpszAppNameVersion);
-
+	
 	m_List.SetExtendedStyle(m_List.GetExtendedStyle() | LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT);
 	m_List.InsertColumn(COLUMN_NO, _T("No"), LVCFMT_LEFT, 60);
 	m_List.InsertColumn(COLUMN_SRCFILE, _T("Source File Path"), LVCFMT_LEFT, 340);
@@ -238,8 +155,6 @@ BOOL CGetSymbolDlg::OnInitDialog()
 	m_StatusBar.SetText(_T(" Status "), 0, 0);
 	m_StatusBar.SetText(_T(" Ready"), 1, 0);
 
-	CreateThread(0, 0, UpdateCheckThread, 0, 0, 0);
-
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -249,10 +164,6 @@ void CGetSymbolDlg::OnSysCommand(UINT nID, LPARAM lParam)
 	{
 		CAboutDlg dlgAbout;
 		dlgAbout.DoModal();
-	}
-	else if (nID == SC_CLOSE)
-	{
-		OnBnClickedBtnExit();
 	}
 	else
 	{
@@ -266,6 +177,7 @@ void CGetSymbolDlg::OnSysCommand(UINT nID, LPARAM lParam)
 
 void CGetSymbolDlg::OnPaint()
 {
+	
 	if (IsIconic())
 	{
 		CPaintDC dc(this); // device context for painting
@@ -287,6 +199,7 @@ void CGetSymbolDlg::OnPaint()
 	{
 		CDialogEx::OnPaint();
 	}
+	
 }
 
 // The system calls this function to obtain the cursor to display while the user drags
@@ -298,40 +211,18 @@ HCURSOR CGetSymbolDlg::OnQueryDragIcon()
 
 void CGetSymbolDlg::OnBnClickedBtnExit()
 {
-	if (m_bExitPending) {
+	if (pMainDlg->m_bExitPending) {
 		return;
 	}
 	
 	if (AfxMessageBox(L"Really want to exit?", MB_YESNO) == IDYES) {
-		m_bExitPending = TRUE;
-		HANDLE hExitThread = CreateThread(NULL, 0, ExitProc, NULL, 0, NULL);
-		CloseHandle(hExitThread);
+		pMainDlg->m_bExitPending = TRUE;
+		CreateThread(NULL, 0, ExitProc, NULL, 0, NULL);
 	}
-}
-
-void CGetSymbolDlg::Close() {
-	CDialogEx::OnCancel();
 }
 
 DWORD WINAPI ExitProc(LPVOID lp) {
-	SuspendThread(g_hMainThread);
-	pDlg->m_StatusBar.SetText(_T(" Closing... Waiting for current tasks are completed..."), 1, 0);
-	while (TRUE)
-	{
-		if (g_dwThreadRunningCount == 0)
-			break;
-		Sleep(300);
-	}
-	CloseHandle(g_hMainThread);
-	DeleteFile(_T("dbghelp.dll"));
-	DeleteFile(_T("symbolcheck.dll"));
-	DeleteFile(_T("symchk.exe"));
-	DeleteFile(_T("dbgeng.dll"));
-	DeleteFile(_T("DbgModel.dll"));
-	DeleteFile(_T("msvcrt.dll"));
-	DeleteFile(_T("symsrv.dll"));
-	DeleteFile(_T("symsrv.yes"));
-	pDlg->Close();
+	pMainDlg->Close();
 	return 0;
 }
 
@@ -343,6 +234,7 @@ BOOL CGetSymbolDlg::PreTranslateMessage(MSG* pMsg)
 		if (pMsg->wParam == VK_RETURN || pMsg->wParam == VK_ESCAPE)
 			return TRUE;
 	}
+
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
 
@@ -378,6 +270,7 @@ void CGetSymbolDlg::OnBnClickedBtnSrc()
 	}
 }
 
+
 void CGetSymbolDlg::OnBnClickedBtnDest()
 {
 	ITEMIDLIST		*pidlBrowse;
@@ -409,51 +302,54 @@ void CGetSymbolDlg::OnBnClickedBtnStart()
 	if (m_bBusy) {
 		if (!m_bPaused) {
 			m_bPaused = TRUE;
-			SuspendThread(g_hMainThread);
-			pDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Resume");
-			pDlg->m_StatusBar.SetText(_T(" Paused"), 1, 0);
+			SuspendThread(m_hMainThread);
+			pGetSymbolDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Resume");
+			pGetSymbolDlg->m_StatusBar.SetText(_T(" Paused"), 1, 0);
 		}
 		else {
 			m_bPaused = FALSE;
-			ResumeThread(g_hMainThread);
-			pDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Pause");
-			pDlg->m_StatusBar.SetText(_T(" Downloading..."), 1, 0);
+			ResumeThread(m_hMainThread);
+			pGetSymbolDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Pause");
+			pGetSymbolDlg->m_StatusBar.SetText(_T(" Downloading..."), 1, 0);
 		}
 		return;
 	}
 		
+
 	UpdateData(TRUE);
 	m_List.DeleteAllItems();
 
-	g_hMainThread = CreateThread(NULL, 0, StartProc, NULL, 0, NULL);
+	m_hMainThread = CreateThread(NULL, 0, StartProc, NULL, 0, NULL);
+
+
 }
 
 DWORD WINAPI StartProc(LPVOID lp)
 {
-	pDlg->m_bBusy = TRUE;
-	pDlg->m_bPaused = FALSE;
-	pDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Pause");
-	pDlg->m_StatusBar.SetText(_T(" Downloading..."), 1, 0);
+	pGetSymbolDlg->m_bBusy = TRUE;
+	pGetSymbolDlg->m_bPaused = FALSE;
+	pGetSymbolDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Pause");
+	pGetSymbolDlg->m_StatusBar.SetText(_T(" Downloading..."), 1, 0);
 
-	pDlg->m_SuccCount = pDlg->m_FailCount = g_dwThreadRunningCount = 0;
+	pGetSymbolDlg->m_SuccCount = pGetSymbolDlg->m_FailCount = pGetSymbolDlg->m_nThreadRunningCount = 0;
 
-	FileSearch(pDlg->m_SrcPath);
+	FileSearch(pGetSymbolDlg->m_SrcPath);
 
 	while (TRUE)
 	{
-		if (g_dwThreadRunningCount == 0)
+		if (pGetSymbolDlg->m_nThreadRunningCount == 0)
 			break;
 		Sleep(300);
 	}
 
-	DWORD dwTotal = pDlg->m_SuccCount + pDlg->m_FailCount;
+	DWORD dwTotal = pGetSymbolDlg->m_SuccCount + pGetSymbolDlg->m_FailCount;
 	CString str;
-	str.Format(_T("Symbol Download Finished! \r\n\r\n        Success  :  [%d / %d] \n        Failed     :  [%d / %d]"), pDlg->m_SuccCount, dwTotal, pDlg->m_FailCount, dwTotal);
+	str.Format(_T("Symbol Download Finished! \r\n\r\n        Success  :  [%d / %d] \n        Failed     :  [%d / %d]"), pGetSymbolDlg->m_SuccCount, dwTotal, pGetSymbolDlg->m_FailCount, dwTotal);
 	AfxMessageBox(str);
 
-	pDlg->m_bBusy = FALSE;
-	pDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Start");
-	pDlg->m_StatusBar.SetText(_T(" Download completed"), 1, 0);
+	pGetSymbolDlg->m_bBusy = FALSE;
+	pGetSymbolDlg->GetDlgItem(ID_BTN_START)->SetWindowTextW(L"Start");
+	pGetSymbolDlg->m_StatusBar.SetText(_T(" Download completed"), 1, 0);
 
 	return 0;
 }
@@ -502,7 +398,7 @@ void FileSearch(CString strPath)
 
 void GetPDB(CString szFilePath)
 {
-	while (g_dwThreadRunningCount > pDlg->m_ThreadCount)
+	while (pGetSymbolDlg->m_nThreadRunningCount > pGetSymbolDlg->m_ThreadCount)
 	{
 		Sleep(20);
 	}
@@ -514,19 +410,19 @@ void GetPDB(CString szFilePath)
 	lvitem.stateMask = LVIS_STATEIMAGEMASK;
 	lvitem.state = INDEXTOSTATEIMAGEMASK(1);
 	lvitem.iImage = 2;
-	lvitem.iItem = pDlg->m_List.GetItemCount();
+	lvitem.iItem = pGetSymbolDlg->m_List.GetItemCount();
 	lvitem.pszText = szText;
-	int nIndex = pDlg->m_List.InsertItem(&lvitem);
+	int nIndex = pGetSymbolDlg->m_List.InsertItem(&lvitem);
 
 	_stprintf_s(szText, _T("%d"), nIndex + 1);
-	pDlg->m_List.SetItemText(nIndex, COLUMN_NO, szText);
-	pDlg->m_List.SetItemData(nIndex, nIndex);
+	pGetSymbolDlg->m_List.SetItemText(nIndex, COLUMN_NO, szText);
+	pGetSymbolDlg->m_List.SetItemData(nIndex, nIndex);
 
-	pDlg->m_List.SetItemText(nIndex, COLUMN_SRCFILE, szFilePath);
-	pDlg->m_List.EnsureVisible(nIndex, FALSE);
+	pGetSymbolDlg->m_List.SetItemText(nIndex, COLUMN_SRCFILE, szFilePath);
+	pGetSymbolDlg->m_List.EnsureVisible(nIndex, FALSE);
 
-	InterlockedIncrement((LONG volatile *)&g_dwThreadRunningCount);
-	pDlg->m_List.SetItemText(nIndex, COLUMN_STAT, _T("Checking..."));
+	InterlockedIncrement((LONG volatile *)&pGetSymbolDlg->m_nThreadRunningCount);
+	pGetSymbolDlg->m_List.SetItemText(nIndex, COLUMN_STAT, _T("Checking..."));
 	HANDLE hProc = CreateThread(0, 0, SymCheckThread, (LPVOID)nIndex, 0, 0);
 	CloseHandle(hProc);	
 }
@@ -562,7 +458,7 @@ DWORD WINAPI SymCheckThread(LPVOID lp)
 	CString strError = _T("Error occured.");
 	BOOL bSuccess = FALSE;
 
-	strFile = pDlg->m_List.GetItemText(index, COLUMN_SRCFILE);
+	strFile = pGetSymbolDlg->m_List.GetItemText(index, COLUMN_SRCFILE);
 
 	STARTUPINFO si;
 	PROCESS_INFORMATION pi;
@@ -580,7 +476,7 @@ DWORD WINAPI SymCheckThread(LPVOID lp)
 	si.cb = sizeof(si);
 	ZeroMemory(&pi, sizeof(pi));
 
-	_stprintf_s(szRun, _T("symchk.exe /r /if %s /s SRV*%s*%s"), (LPCTSTR)strFile, (LPCTSTR)pDlg->m_DestPath, szSymUrl);
+	_stprintf_s(szRun, _T("symchk.exe /r /if %s /s SRV*%s*%s"), (LPCTSTR)strFile, (LPCTSTR)pGetSymbolDlg->m_DestPath, szSymUrl);
 	_stprintf_s(cmdline, _T("cmd.exe /c \"%s > %s\""), szRun, szTmpFilePath);
 
 	CreateProcess(NULL, cmdline, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
@@ -619,18 +515,18 @@ DWORD WINAPI SymCheckThread(LPVOID lp)
 
 	if (bSuccess)
 	{
-		pDlg->m_SuccCount++;
-		pDlg->m_List.SetItemText(index, COLUMN_STAT, _T("Success."));
+		pGetSymbolDlg->m_SuccCount++;
+		pGetSymbolDlg->m_List.SetItemText(index, COLUMN_STAT, _T("Success."));
 	}
 	else
 	{
-		pDlg->m_FailCount++;
-		pDlg->m_List.SetItemText(index, COLUMN_STAT, strError);
+		pGetSymbolDlg->m_FailCount++;
+		pGetSymbolDlg->m_List.SetItemText(index, COLUMN_STAT, strError);
 	}
 
 	DeleteFile(szTmpFilePath);
 
-	InterlockedDecrement((LONG volatile *)&g_dwThreadRunningCount);
+	InterlockedDecrement((LONG volatile *)&pGetSymbolDlg->m_nThreadRunningCount);
 	return 0;
 }
 
@@ -672,23 +568,6 @@ void CGetSymbolDlg::OnColumnclickList(NMHDR *pNMHDR, LRESULT *pResult)
 }
 
 
-char* strline(char* szStr, char* szLine)
-{
-	char* szEnd;
-
-	if ((szEnd = strchr(szStr, '\n')) != NULL)
-	{
-		strncpy(szLine, szStr, (int)(szEnd - szStr));
-		if (szLine[(int)(szEnd - szStr) - 1] == '\r')
-			szLine[(int)(szEnd - szStr) - 1] = 0;
-		return szEnd[1] != 0 ? szEnd + 1 : NULL;
-	}
-	else
-	{
-		strcpy(szLine, szStr);
-		return NULL;
-	}
-}
 
 void CGetSymbolDlg::OnBnClickedRadioMs()
 {
@@ -709,6 +588,6 @@ void CGetSymbolDlg::OnBnClickedRadioMozilla()
 
 
 void CGetSymbolDlg::OnBnClickedRadioCitrix()
-{
+{ 
 	_tcscpy_s(szSymUrl, CITRIX_SYMBOL_SERVER);
 }

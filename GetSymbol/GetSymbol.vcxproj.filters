@@ -13,6 +13,21 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\json">
+      <UniqueIdentifier>{09ed1a22-b30c-4dd0-a1f6-54b2c599c01e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\gzip">
+      <UniqueIdentifier>{7893dbc4-f2fe-4a1a-8a49-b84f3a38cd45}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\gzip\zip">
+      <UniqueIdentifier>{19e777d3-a053-459f-8fbb-a6d74c6722c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\gzip">
+      <UniqueIdentifier>{78601a7f-8420-459d-a786-868d74a0e920}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\gzip\zip">
+      <UniqueIdentifier>{1d2f4981-daa8-476f-80e2-1b12da443b9b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -36,6 +51,60 @@
     <ClInclude Include="HttpRoutine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CMainDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CGetSymbolTab.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CWinBinDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="json\json.h">
+      <Filter>Header Files\json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\json-forwards.h">
+      <Filter>Header Files\json</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\GZipHelper.h">
+      <Filter>Header Files\gzip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\deflate.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\infblock.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\infcodes.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\inffast.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\inffixed.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\inftrees.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\infutil.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\trees.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\zconf.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\zlib.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="gzip\zip\zutil.h">
+      <Filter>Header Files\gzip\zip</Filter>
+    </ClInclude>
+    <ClInclude Include="GZipComp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GetSymbol.cpp">
@@ -48,6 +117,66 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="HttpRoutine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CMainDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CGetSymbolTab.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CWinBinDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="jsoncpp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\adler32.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\compress.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\crc32.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\deflate.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\gzio.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\infblock.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\infcodes.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\inffast.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\inflate.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\inftrees.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\infutil.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\maketree.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\trees.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\uncompr.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="gzip\zip\zutil.c">
+      <Filter>Source Files\gzip\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="GZipComp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

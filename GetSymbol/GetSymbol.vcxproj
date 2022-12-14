@@ -109,7 +109,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -162,7 +162,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -191,17 +191,55 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CGetSymbolTab.h" />
+    <ClInclude Include="CMainDlg.h" />
+    <ClInclude Include="CWinBinDlg.h" />
     <ClInclude Include="GetSymbol.h" />
     <ClInclude Include="GetSymbolDlg.h" />
+    <ClInclude Include="GZipComp.h" />
+    <ClInclude Include="gzip\GZipHelper.h" />
+    <ClInclude Include="gzip\zip\deflate.h" />
+    <ClInclude Include="gzip\zip\infblock.h" />
+    <ClInclude Include="gzip\zip\infcodes.h" />
+    <ClInclude Include="gzip\zip\inffast.h" />
+    <ClInclude Include="gzip\zip\inffixed.h" />
+    <ClInclude Include="gzip\zip\inftrees.h" />
+    <ClInclude Include="gzip\zip\infutil.h" />
+    <ClInclude Include="gzip\zip\trees.h" />
+    <ClInclude Include="gzip\zip\zconf.h" />
+    <ClInclude Include="gzip\zip\zlib.h" />
+    <ClInclude Include="gzip\zip\zutil.h" />
     <ClInclude Include="HttpRoutine.h" />
+    <ClInclude Include="json\json-forwards.h" />
+    <ClInclude Include="json\json.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CGetSymbolTab.cpp" />
+    <ClCompile Include="CMainDlg.cpp" />
+    <ClCompile Include="CWinBinDlg.cpp" />
     <ClCompile Include="GetSymbol.cpp" />
     <ClCompile Include="GetSymbolDlg.cpp" />
+    <ClCompile Include="GZipComp.cpp" />
+    <ClCompile Include="gzip\zip\adler32.c" />
+    <ClCompile Include="gzip\zip\compress.c" />
+    <ClCompile Include="gzip\zip\crc32.c" />
+    <ClCompile Include="gzip\zip\deflate.c" />
+    <ClCompile Include="gzip\zip\gzio.c" />
+    <ClCompile Include="gzip\zip\infblock.c" />
+    <ClCompile Include="gzip\zip\infcodes.c" />
+    <ClCompile Include="gzip\zip\inffast.c" />
+    <ClCompile Include="gzip\zip\inflate.c" />
+    <ClCompile Include="gzip\zip\inftrees.c" />
+    <ClCompile Include="gzip\zip\infutil.c" />
+    <ClCompile Include="gzip\zip\maketree.c" />
+    <ClCompile Include="gzip\zip\trees.c" />
+    <ClCompile Include="gzip\zip\uncompr.c" />
+    <ClCompile Include="gzip\zip\zutil.c" />
     <ClCompile Include="HttpRoutine.cpp" />
+    <ClCompile Include="jsoncpp.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

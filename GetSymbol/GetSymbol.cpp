@@ -4,13 +4,18 @@
 
 #include "stdafx.h"
 #include "GetSymbol.h"
+#include "CMainDlg.h"
 #include "GetSymbolDlg.h"
+#include "CWinBinDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
-CGetSymbolDlg* pDlg;
+CMainDlg* pMainDlg;
+CGetSymbolDlg* pGetSymbolDlg;
+CWinBinDlg* pWinBinDlg;
+
 TCHAR szExePath[1024];
 
 // CGetSymbolApp
@@ -257,8 +262,8 @@ BOOL CGetSymbolApp::InitInstance()
 	// such as the name of your company or organization
 	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
 
-	CGetSymbolDlg dlg;
-	m_pMainWnd = pDlg = &dlg;
+	CMainDlg dlg;
+	m_pMainWnd = pMainDlg = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)
 	{

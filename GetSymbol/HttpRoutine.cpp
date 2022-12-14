@@ -324,7 +324,8 @@ _Success_(return == ERROR_SUCCESS)
 ULONG BeginDownload(
 	_In_ LPCWSTR url,
 	_In_ HANDLE hFile,
-	_In_ TCHAR ** lpStringBuffer
+	_In_ TCHAR ** lpStringBuffer,
+	_In_ ULONG *dwReaded
 )
 {
 
@@ -358,11 +359,13 @@ ULONG BeginDownload(
 	}
 		
 
+	buffer_length = 128 * 1024 * 1024;
+
 	if (!hFile) {
-		*lpStringBuffer = (TCHAR*)LocalAlloc(LPTR, total_length);
+		*lpStringBuffer = (TCHAR*)LocalAlloc(LPTR, buffer_length);
 	}
 
-	buffer_length = 64 * 1024;
+	
 
 	lpBuffer = (CHAR *)LocalAlloc(LPTR, buffer_length);
 
@@ -370,7 +373,7 @@ ULONG BeginDownload(
 
 	while (ReadRequest(
 		hrequest,
-		lpBuffer,
+		lpBuffer, 
 		buffer_length,
 		&readed_length,
 		&total_readed))
@@ -394,7 +397,38 @@ ULONG BeginDownload(
 	WinHttpCloseHandle(hrequest);
 	WinHttpCloseHandle(hconnect);
 	WinHttpCloseHandle(hsession);
-
+	if (dwReaded) {
+		*dwReaded = total_readed;
+	}
+	
 	return status;
 }
 
+char* strline(char* szStr, char* szLine)
+{
+	char* szEnd;
+
+	if ((szEnd = strchr(szStr, '\n')) != NULL)
+	{
+		strncpy(szLine, szStr, (int)(szEnd - szStr));
+		if (szLine[(int)(szEnd - szStr) - 1] == '\r')
+			szLine[(int)(szEnd - szStr) - 1] = 0;
+		return szEnd[1] != 0 ? szEnd + 1 : NULL;
+	}
+	else
+	{
+		strcpy(szLine, szStr);
+		return NULL;
+	}
+}
+
+void SplitString(TCHAR* string, TCHAR spliter, TCHAR* first_part, TCHAR* second_part) {
+
+	wcscpy(first_part, string);
+	TCHAR* ptr = wcschr(first_part, spliter);
+	if (!ptr) return;
+	*ptr = L'\x00';
+
+	ptr = wcschr(string, spliter);
+	wcscpy(second_part, ptr + 1);
+}

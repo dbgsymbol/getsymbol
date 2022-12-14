@@ -9,7 +9,7 @@
 #pragma comment(lib, "winhttp.lib")
 
 #define APP_NAME L"GetSymbol"
-#define APP_VERSION L"1.0.1"
+#define APP_VERSION L"2.0.0"
 
 #define UPDATE_CHECK_URL L"https://dbgsymbol.com/version"
 #define WEBSITE_URL L"https://dbgsymbol.com"
@@ -43,6 +43,10 @@ ULONG QueryStatusCode(
 ULONG BeginDownload(
 	_In_ LPCWSTR url,
 	_In_ HANDLE hFile,
-	_In_ TCHAR** lpStringBuffer
+	_In_ TCHAR** lpStringBuffer,
+	_In_ ULONG* dwReaded = NULL
 );
+
+void SplitString(TCHAR* string, TCHAR spliter, TCHAR* first_part, TCHAR* second_part);
+char* strline(char* szStr, char* szLine);
 
