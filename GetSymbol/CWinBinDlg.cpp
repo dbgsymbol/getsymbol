@@ -694,7 +694,7 @@ BOOL CWinBinDlg::PreTranslateMessage(MSG* pMsg)
 }
 
 typedef struct _SortData {
-	TCHAR	szText[200];
+	TCHAR	szText[0x2000];
 }SortData, * PSortData;
 
 static int CALLBACK GenSort(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
