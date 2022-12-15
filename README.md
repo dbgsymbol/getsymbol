@@ -9,7 +9,7 @@ Supported OS: Windows 8.1, 10, 11 <br>
 ## Description
 
 Simple tool to download debugging symbols from Microsoft, Google, Mozilla and Citrix symbol servers for reverse engineers compatible with Windows 8.1, 10 and 11 <br><br>
-![getsymbol](https://user-images.githubusercontent.com/114739778/207534717-a24cbf2a-ea7c-4cfd-85e7-eb3de2dce9d7.png)
+![getsymbol](https://user-images.githubusercontent.com/114739778/207784935-dbc62194-e68d-4b37-bfc4-e1395ec63952.png)
 
 ## Release Notes
 ### 1.0.0
