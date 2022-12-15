@@ -350,6 +350,8 @@ DWORD WINAPI LoadFileNames(LPVOID lp) {
 	if (file_names.size() > 0) {
 		pWinBinDlg->m_StatusBar.SetText(_T("Ready"), 3, 0);
 	}
+
+	return 0;
 }
 
 BOOL CWinBinDlg::OnInitDialog()
@@ -401,7 +403,7 @@ BOOL CWinBinDlg::OnInitDialog()
 	widths[0] = 50;
 	widths[1] = 80;
 	widths[2] = 160;
-	widths[3] = 600;
+	widths[3] = 700;
 	m_StatusBar.SetParts(4, widths);
 
 	m_StatusBar.SetText(_T("Threads "), 0, 0);
@@ -694,7 +696,7 @@ BOOL CWinBinDlg::PreTranslateMessage(MSG* pMsg)
 }
 
 typedef struct _SortData {
-	TCHAR	szText[200];
+	CString	szText;
 }SortData, * PSortData;
 
 static int CALLBACK GenSort(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
@@ -703,7 +705,7 @@ static int CALLBACK GenSort(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
 	SortData* d2 = (SortData*)lParam2;
 	int result;
 
-	result = _tcscmp(d2->szText, d1->szText);
+	result = _tcscmp((LPTSTR)(LPCTSTR)d2->szText, (LPTSTR)(LPCTSTR)d1->szText);
 
 	return result;
 }
@@ -719,10 +721,11 @@ void CWinBinDlg::OnColumnclickList(NMHDR* pNMHDR, LRESULT* pResult)
 	SortData* arStr = new SortData[count];
 	for (int i = 0; i < count; i++)
 	{
-		_tcscpy_s(arStr[i].szText, m_List.GetItemText(i, pNMListView->iSubItem));
+		arStr[i].szText = m_List.GetItemText(i, pNMListView->iSubItem);
 		m_List.SetItemData(i, (LPARAM)(arStr + i));
 	}
 	m_List.SortItems(GenSort, 0);
+	delete[] arStr;
 	*pResult = 0;
 }
 
@@ -961,7 +964,7 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 	{
 		DWORD dwRead;
 		DWORD dwSize = GetFileSize(hFile, NULL);
-		char* szBuf = (char*)LocalAlloc(LPTR, dwSize);
+		char* szBuf = (char*)LocalAlloc(LPTR, dwSize + 0x1000);
 		ReadFile(hFile, szBuf, dwSize, &dwRead, NULL);
 		CloseHandle(hFile);
 
@@ -982,10 +985,10 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 				strError = wszText;
 			}
 		}
+		LocalFree(szBuf);
 	}
 
 	DeleteFile(szTmpFilePath);
-
 	pWinBinDlg->m_StatusBar.SetText(strError, 3, 0);
 
 	InterlockedDecrement((LONG volatile*)&pWinBinDlg->m_nThreadCount);

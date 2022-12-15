@@ -148,7 +148,7 @@ BOOL CGetSymbolDlg::OnInitDialog()
 	m_StatusBar.Create(WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, IDC_STATUSBAR);
 
 	widths[0] = 100;
-	widths[1] = 600;
+	widths[1] = 700;
 
 	m_StatusBar.SetParts(2, widths);
 
@@ -489,7 +489,7 @@ DWORD WINAPI SymCheckThread(LPVOID lp)
 	{
 		DWORD dwRead;
 		DWORD dwSize = GetFileSize(hFile, NULL);
-		char* szBuf = (char*)LocalAlloc(LPTR, dwSize);
+		char* szBuf = (char*)LocalAlloc(LPTR, dwSize + 0x1000);
 		ReadFile(hFile, szBuf, dwSize, &dwRead, NULL);
 		CloseHandle(hFile);
 
@@ -510,6 +510,7 @@ DWORD WINAPI SymCheckThread(LPVOID lp)
 				strError = "Success.";
 			}
 		}
+		LocalFree(szBuf);
 	}
 
 
@@ -531,7 +532,7 @@ DWORD WINAPI SymCheckThread(LPVOID lp)
 }
 
 typedef struct _SortData{
-	TCHAR	name[MAX_PATH];
+	TCHAR	name[4096];
 }SortData, *PSortData;
 
 static int CALLBACK GenSort(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
@@ -565,6 +566,7 @@ void CGetSymbolDlg::OnColumnclickList(NMHDR *pNMHDR, LRESULT *pResult)
 	}
 	m_List.SortItems(GenSort, 0);
 	*pResult = 0;
+	delete[] arStr;
 }
 
 
