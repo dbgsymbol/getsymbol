@@ -1,8 +1,8 @@
 <h1>GetSymbol Project</h1>
 
-Version: 2.0.0 <br>
+Version: 2.0.1 <br>
 First release: 30 September 2022 <br>
-Latest release: 13 December 2022 <br>
+Latest release: 15 December 2022 <br>
 Platform architecture: x64 <br>
 Supported OS: Windows 8.1, 10, 11 <br>
 
@@ -24,13 +24,16 @@ Simple tool to download debugging symbols from Microsoft, Google, Mozilla and Ci
 - Added new features for downloading Windows binary files and corresponding symbols from Microsoft symbol server for all versions
 - Integrated Winbindex database
 - Fixed some issues in memory handling
+### 2.0.1
+- Fixed a heap buffer overflow bug in sort function
+- Resolved some memory handling issues
 
 ## Website
 https://dbgsymbol.com
 
 ## Downloads
-https://dbgsymbol.com/downloads/2.0.0/GetSymbol.exe <br>
-https://dbgsymbol.com/downloads/2.0.0/GetSymbol.exe.sig
+https://dbgsymbol.com/downloads/2.0.1/GetSymbol.exe <br>
+https://dbgsymbol.com/downloads/2.0.1/GetSymbol.exe.sig
 
 ## PGP Signature
 Public key : https://raw.githubusercontent.com/dbgsymbol/build/master/dbgsymbol_pubkey.asc <br>
