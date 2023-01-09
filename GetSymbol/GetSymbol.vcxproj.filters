@@ -105,6 +105,12 @@
     <ClInclude Include="GZipComp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CUpdateDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CDetailedInfoDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GetSymbol.cpp">
@@ -177,6 +183,12 @@
       <Filter>Source Files\gzip\zip</Filter>
     </ClCompile>
     <ClCompile Include="GZipComp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CUpdateDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CDetailedInfoDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

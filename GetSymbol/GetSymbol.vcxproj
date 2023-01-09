@@ -191,8 +191,10 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CDetailedInfoDlg.h" />
     <ClInclude Include="CGetSymbolTab.h" />
     <ClInclude Include="CMainDlg.h" />
+    <ClInclude Include="CUpdateDlg.h" />
     <ClInclude Include="CWinBinDlg.h" />
     <ClInclude Include="GetSymbol.h" />
     <ClInclude Include="GetSymbolDlg.h" />
@@ -217,8 +219,10 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CDetailedInfoDlg.cpp" />
     <ClCompile Include="CGetSymbolTab.cpp" />
     <ClCompile Include="CMainDlg.cpp" />
+    <ClCompile Include="CUpdateDlg.cpp" />
     <ClCompile Include="CWinBinDlg.cpp" />
     <ClCompile Include="GetSymbol.cpp" />
     <ClCompile Include="GetSymbolDlg.cpp" />

@@ -6,6 +6,8 @@
 #include "CWinBinDlg.h"
 #include "afxdialogex.h"
 
+#include "CDetailedInfoDlg.h"
+
 #include <fstream>
 #include <string.h>
 #include <UserEnv.h>
@@ -14,8 +16,6 @@
 #include "HttpRoutine.h"
 
 #pragma comment(lib, "userenv.lib")
-
-#define WINBINDEX_DATA_URL L"https://winbindex.m417z.com/data"
 
 enum UPD_LIST_COLUMNS {
 	COL_NUM,
@@ -26,9 +26,12 @@ enum UPD_LIST_COLUMNS {
 	COL_HASH,
 };
 
-enum PROP_LIST_COLUMNS {
-	COL_PROP_NAME,
-	COL_PROP_VALUE,
+enum DOWN_LIST_COLUMNS {
+	COL_DOWN_NUM,
+	COL_DOWN_FILENAME,
+	COL_DOWN_BUILD_NUM,
+	COL_DOWN_HASH,
+	COL_DOWN_STATUS,
 };
 
 
@@ -39,8 +42,8 @@ IMPLEMENT_DYNAMIC(CWinBinDlg, CDialogEx)
 
 CWinBinDlg::CWinBinDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_WIN_BIN_DLG, pParent)
-	, m_bDownBin(FALSE)
-	, m_bDownSym(FALSE)
+	, m_bDownBin(TRUE)
+	, m_bDownSym(TRUE)
 	, m_strSearch(_T(""))
 {
 	m_nThreadCount = 0;
@@ -56,7 +59,7 @@ void CWinBinDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_LIST, m_List);
 	DDX_Control(pDX, IDC_CMB_BINARY_NAME, m_cmbFileName);
-	DDX_Control(pDX, IDC_LIST_PROTPERY, m_listProp);
+	DDX_Control(pDX, IDC_LIST_DOWNLOAD, m_listDownload);
 	DDX_Check(pDX, IDC_CHECK_BIN, m_bDownBin);
 	DDX_Check(pDX, IDC_CHECK_PDB, m_bDownSym);
 	DDX_Control(pDX, IDC_CMB_OS_VERSION, m_cmbVersionFilter);
@@ -69,14 +72,23 @@ BEGIN_MESSAGE_MAP(CWinBinDlg, CDialogEx)
 ON_CBN_CLOSEUP(IDC_CMB_BINARY_NAME, &CWinBinDlg::OnCloseupCmbBinaryName)
 ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST, &CWinBinDlg::OnColumnclickList)
 ON_CBN_DROPDOWN(IDC_CMB_BINARY_NAME, &CWinBinDlg::OnDropdownCmbBinaryName)
-ON_NOTIFY(NM_CLICK, IDC_LIST, &CWinBinDlg::OnClickList)
-ON_NOTIFY(LVN_KEYDOWN, IDC_LIST, &CWinBinDlg::OnKeydownList)
 ON_BN_CLICKED(IDC_CHECK_PDB, &CWinBinDlg::OnBnClickedCheckPdb)
 ON_BN_CLICKED(IDC_CHECK_BIN, &CWinBinDlg::OnBnClickedCheckBin)
 ON_CBN_CLOSEUP(IDC_CMB_OS_VERSION, &CWinBinDlg::OnCloseupCmbOsVerion)
 ON_BN_CLICKED(IDC_BTN_DOWN, &CWinBinDlg::OnBnClickedBtnDown)
 ON_EN_CHANGE(IDC_EDIT_SEARACH, &CWinBinDlg::OnChangeEditSearach)
 ON_BN_CLICKED(IDC_BTN_EXIT, &CWinBinDlg::OnBnClickedBtnExit)
+ON_WM_RBUTTONDOWN()
+ON_NOTIFY(NM_RCLICK, IDC_LIST, &CWinBinDlg::OnRclickList)
+ON_COMMAND(ID_OPERATION_VIEWINFO, &CWinBinDlg::OnOperationViewinfo)
+ON_NOTIFY(NM_DBLCLK, IDC_LIST, &CWinBinDlg::OnDblclkList)
+ON_COMMAND(ID_OPERATION_ADDTO, &CWinBinDlg::OnOperationAddto)
+ON_COMMAND(ID_DOWNLOAD_BINARY, &CWinBinDlg::OnOperationDownloadbinary)
+ON_COMMAND(ID_DOWNLOAD_BINARYSYMBOL, &CWinBinDlg::OnDownloadBinarysymbol)
+ON_NOTIFY(NM_RCLICK, IDC_LIST_DOWNLOAD, &CWinBinDlg::OnRclickListDownload)
+ON_COMMAND(ID_DL_REMOVE, &CWinBinDlg::OnDlRemove)
+ON_COMMAND(ID_DL_CLEARALL, &CWinBinDlg::OnDlClearall)
+ON_COMMAND(ID_DL_OPENFILELOCATION, &CWinBinDlg::OnDlOpenfilelocation)
 END_MESSAGE_MAP()
 
 // CWinBinDlg message handlers
@@ -281,6 +293,8 @@ std::vector<UPD_FILE_INFO> GetUpdateFileInfoList(TCHAR* wszIndexFileUrl) {
 		return m_upd_file_info_list;
 	}
 
+	pWinBinDlg->m_infoRoot = root;
+
 	Json::Value::Members upd_file_hashes = root.getMemberNames();
 	for each(Json::String file_hash in upd_file_hashes) {
 			
@@ -290,6 +304,7 @@ std::vector<UPD_FILE_INFO> GetUpdateFileInfoList(TCHAR* wszIndexFileUrl) {
 
 			
 		UPD_FILE_INFO upd_file_info;
+		upd_file_info.file_name = pWinBinDlg->m_wszFileName;
 		upd_file_info.hash = file_hash;
 		upd_file_info.file_version = file_version;
 
@@ -367,42 +382,26 @@ BOOL CWinBinDlg::OnInitDialog()
 	m_List.SetExtendedStyle(m_List.GetExtendedStyle() | LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT);
 
 	m_List.InsertColumn(COL_NUM, _T("No"), LVCFMT_LEFT, 30);
-
 	m_List.InsertColumn(COL_OS_VERSION, _T("OS"), LVCFMT_LEFT, 110);
 	m_List.InsertColumn(COL_OS_BUILD_NUM, _T("Build Version"), LVCFMT_LEFT, 150);
 	m_List.InsertColumn(COL_FILE_VERSION, _T("File Version"), LVCFMT_LEFT, 110);
 	m_List.InsertColumn(COL_UPDATE, _T("Update"), LVCFMT_LEFT, 100); 
 	m_List.InsertColumn(COL_HASH, _T("SHA256"), LVCFMT_LEFT, 200);
-	m_listProp.SetExtendedStyle(m_List.GetExtendedStyle() | LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT);
 
-	m_listProp.InsertColumn(COL_NUM, _T("Property"), LVCFMT_LEFT, 100);
-	m_listProp.InsertColumn(COL_HASH, _T("Value"), LVCFMT_LEFT, 500);
+	m_listDownload.SetExtendedStyle(m_List.GetExtendedStyle() | LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT);
 
-	TCHAR *wszPropNames[]= {L"FileName",  L"OS", L"Build Version", L"File Version", L"Download URL", L"Rlease Dates", L"Update KB", L"SHA256"};
-
-	for each (TCHAR * wszPropName in wszPropNames) {
-		TCHAR szText[0x2000];
-
-		LV_ITEM lvitem;
-		lvitem.mask = LVIF_TEXT | LVIF_IMAGE | LVIF_STATE;
-		lvitem.iSubItem = 0;
-		lvitem.stateMask = LVIS_STATEIMAGEMASK;
-		lvitem.state = INDEXTOSTATEIMAGEMASK(1);
-		lvitem.iImage = 2;
-		lvitem.iItem = m_listProp.GetItemCount();
-		lvitem.pszText = szText;
-		int nIndex = m_listProp.InsertItem(&lvitem);
-
-		m_listProp.SetItemText(nIndex, COL_PROP_NAME, wszPropName);
-		m_listProp.SetItemData(nIndex, nIndex);
-	}
+	m_listDownload.InsertColumn(COL_DOWN_NUM, _T("No"), LVCFMT_LEFT, 30);
+	m_listDownload.InsertColumn(COL_DOWN_FILENAME, _T("Filename"), LVCFMT_LEFT, 80);
+	m_listDownload.InsertColumn(COL_DOWN_BUILD_NUM, _T("Build Version"), LVCFMT_LEFT, 110);
+	m_listDownload.InsertColumn(COL_DOWN_HASH, _T("SHA256"), LVCFMT_LEFT, 150);
+	m_listDownload.InsertColumn(COL_DOWN_STATUS, _T("Download Status"), LVCFMT_LEFT, 300);
 
 	int widths[4];
 	m_StatusBar.Create(WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, IDC_WIN_BIN_STATUSBAR);
 
-	widths[0] = 50;
-	widths[1] = 80;
-	widths[2] = 160;
+	widths[0] = 100;
+	widths[1] = 150;
+	widths[2] = 250;
 	widths[3] = 700;
 	m_StatusBar.SetParts(4, widths);
 
@@ -416,8 +415,7 @@ BOOL CWinBinDlg::OnInitDialog()
 	m_cmbDropDown = FALSE;
 
 	UpdateData(FALSE);
-	return TRUE;  // return TRUE unless you set the focus to a control
-				  // EXCEPTION: OCX Property Pages should return FALSE
+	return TRUE; 
 }
 
 void CWinBinDlg::ShowUpdFileInfoList() {
@@ -511,7 +509,6 @@ void CWinBinDlg::ShowUpdFileInfoList() {
 		m_List.SetItemText(nIndex, COL_NUM, szText);
 		m_List.SetItemData(nIndex, nIndex);
 
-
 		char* hash = (char*)(upd_file_info.hash.c_str());
 		size = strlen(hash) + 1;
 		mbstowcs_s(&out_size, szText, size, hash, 0x2000);
@@ -526,7 +523,6 @@ void CWinBinDlg::ShowUpdFileInfoList() {
 		size = strlen(os_version.c_str()) + 1;
 		mbstowcs_s(&out_size, szText, size, os_version.c_str(), 0x2000);
 		m_List.SetItemText(nIndex, COL_OS_VERSION, szText);
-
 
 		Json::String file_version = upd_file_info.file_version;
 		
@@ -561,9 +557,7 @@ void CWinBinDlg::ShowUpdFileInfoList() {
 
 void CWinBinDlg::OnCloseupCmbBinaryName()
 {
-	// TODO: Add your control notification handler code here
 	m_cmbDropDown = FALSE;
-
 	CString strText;
 	GetDlgItemText(IDC_CMB_BINARY_NAME, strText);
 	if (strText == L"..Select a file..") {
@@ -579,19 +573,7 @@ void CWinBinDlg::OnCloseupCmbBinaryName()
 	m_cmbVersionFilter.SetFocus();
 	m_cmbFileName.SetFocus();
 
-	for (int i = 0; i <= 7; i++) {
-		m_listProp.SetItemText(i, COL_PROP_VALUE, L"");
-	}
-
-	m_bDownBin = FALSE;
-	m_bDownSym = FALSE;
-
-	::EnableWindow(::GetDlgItem(m_hWnd, IDC_BTN_DOWN), FALSE);
-	::EnableWindow(::GetDlgItem(m_hWnd, IDC_CHECK_BIN), FALSE);
-	::EnableWindow(::GetDlgItem(m_hWnd, IDC_CHECK_PDB), FALSE);
-
 	UpdateData(FALSE);
-
 	m_List.DeleteAllItems();
 
 	_tcscpy_s(m_wszFileName, strText.GetBuffer(strText.GetLength()));
@@ -630,29 +612,12 @@ void CWinBinDlg::OnCloseupCmbBinaryName()
 
 void CWinBinDlg::OnCloseupCmbOsVerion()
 {
-	// TODO: Add your control notification handler code here
-
-	for (int i = 0; i <= 7; i++) {
-		m_listProp.SetItemText(i, COL_PROP_VALUE, L"");
-	}
-
-	m_bDownBin = FALSE;
-	m_bDownSym = FALSE;
-
-	::EnableWindow(::GetDlgItem(m_hWnd, IDC_BTN_DOWN), FALSE);
-	::EnableWindow(::GetDlgItem(m_hWnd, IDC_CHECK_BIN), FALSE);
-	::EnableWindow(::GetDlgItem(m_hWnd, IDC_CHECK_PDB), FALSE);
-
-	UpdateData(FALSE);
-
 	m_List.DeleteAllItems();
-
 	ShowUpdFileInfoList();
 }
 
 BOOL CWinBinDlg::PreTranslateMessage(MSG* pMsg)
 {
-	// TODO: Add your specialized code here and/or call the base class
 	if (pMsg->message == WM_KEYDOWN)
 	{
 		if (pMsg->wParam == VK_ESCAPE) {
@@ -661,7 +626,6 @@ BOOL CWinBinDlg::PreTranslateMessage(MSG* pMsg)
 		if (pMsg->wParam == VK_RETURN)
 		{
 			if (GetFocus()->GetDlgCtrlID() != IDC_CMB_BINARY_NAME) {
-				
 				return TRUE;
 			}
 
@@ -680,17 +644,6 @@ BOOL CWinBinDlg::PreTranslateMessage(MSG* pMsg)
 				return TRUE;
 			}
 		}
-		
-		if (GetFocus()->GetDlgCtrlID() == IDC_LIST) {
-			if (pMsg->wParam == VK_UP || pMsg->wParam == VK_DOWN) {
-				BOOL bRet = CDialogEx::PreTranslateMessage(pMsg);
-				ULONG itemSelected = (ULONG)m_List.GetFirstSelectedItemPosition();
-				ShowSelectedFileInfo(itemSelected-1);
-				return bRet;
-			}
-			return TRUE;
-		}
-
 	}
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
@@ -705,16 +658,18 @@ static int CALLBACK GenSort(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
 	SortData* d2 = (SortData*)lParam2;
 	int result;
 
-	result = _tcscmp((LPTSTR)(LPCTSTR)d2->szText, (LPTSTR)(LPCTSTR)d1->szText);
-
+	if (_tcslen(d1->szText) > _tcslen(d2->szText))
+		result = 1;
+	else if (_tcslen(d1->szText) < _tcslen(d2->szText))
+		result = -1;
+	else
+		result = _tcscmp(d1->szText, d2->szText);
 	return result;
 }
 
 void CWinBinDlg::OnColumnclickList(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
-	// TODO: Add your control notification handler code here
-
 	NM_LISTVIEW* pNMListView = (NM_LISTVIEW*)pNMHDR;
 
 	int count = m_List.GetItemCount();
@@ -733,18 +688,15 @@ void CWinBinDlg::OnColumnclickList(NMHDR* pNMHDR, LRESULT* pResult)
 void CWinBinDlg::OnDropdownCmbBinaryName()
 {
 	m_cmbDropDown = TRUE;
-	
 	if (m_cmbFileName.GetCount() == 1) {
 		LoadFileNames(NULL);
 	}
-	// TODO: Add your control notification handler code here
 }
 
 void CWinBinDlg::ShowSelectedFileInfo(int itemSelected) {
 	if (itemSelected == -1) {
 		return;
 	}
-
 	TCHAR szText[0x2000];
 	_tcscpy_s(szText, m_List.GetItemText(itemSelected, COL_HASH));
 
@@ -753,6 +705,7 @@ void CWinBinDlg::ShowSelectedFileInfo(int itemSelected) {
 	size_t size = _tcslen(szText) + 1;
 	wcstombs_s(&out_size, file_hash, size, szText, 0x2000);
 
+	Json::Value	file_info = m_infoRoot[file_hash];
 	UPD_FILE_INFO upd_file_info;
 	upd_file_info.timestamp = 0;
 	upd_file_info.virtual_size = 0;
@@ -765,55 +718,32 @@ void CWinBinDlg::ShowSelectedFileInfo(int itemSelected) {
 		}
 	}
 
-	if (!bfound) return;
+	TCHAR wszDownloadURL[0x2000] = L"";
+	CString strFileName = upd_file_info.file_name;
+	MakeSymbolServerUrl(strFileName.GetBuffer(strFileName.GetLength()), upd_file_info.timestamp, upd_file_info.virtual_size, wszDownloadURL);
 
-	TCHAR wszDwonlaodURL[0x2000] = L"";
-	MakeSymbolServerUrl(m_wszFileName, upd_file_info.timestamp, upd_file_info.virtual_size, wszDwonlaodURL);
+	char download_url[0x2000];
+	size = _tcslen(wszDownloadURL) + 1;
+	wcstombs_s(&out_size, download_url, size, wszDownloadURL, 0x2000);
 
-	m_listProp.SetItemText(0, COL_PROP_VALUE, m_wszFileName);
-	m_listProp.SetItemText(1, COL_PROP_VALUE, m_List.GetItemText(itemSelected, COL_OS_VERSION));
-	m_listProp.SetItemText(2, COL_PROP_VALUE, m_List.GetItemText(itemSelected, COL_OS_BUILD_NUM));
-	m_listProp.SetItemText(3, COL_PROP_VALUE, m_List.GetItemText(itemSelected, COL_FILE_VERSION));
-	m_listProp.SetItemText(4, COL_PROP_VALUE, wszDwonlaodURL);
-
-	Json::String releaseDates = "";
-	if(upd_file_info.release_dates.size() > 0){
-		releaseDates = upd_file_info.release_dates[0];
-		for (int i = 1; i < upd_file_info.release_dates.size(); i++) {
-			releaseDates += Json::String(", ") + upd_file_info.release_dates[i];
-		}
-	}
+	file_info["download_url"] = download_url;
+	Json::String detailed_info = file_info.toStyledString();
 	
-	size = strlen(releaseDates.c_str()) + 1;
-	mbstowcs_s(&out_size, szText, size, releaseDates.c_str(), 0x2000);
-	m_listProp.SetItemText(5, COL_PROP_VALUE, szText);
+	int index = 0;
+	while (true) {
+		index = detailed_info.find("\n", index);
+		if (index == std::string::npos) {
+			break;
+		}
+		detailed_info.replace(index, 1, "\r\n");
+		index += 2;
+	}
+	size = strlen(detailed_info.c_str()) + 1;
+	mbstowcs_s(&out_size, szText, size, detailed_info.c_str(), 0x2000);
 
-	m_listProp.SetItemText(6, COL_PROP_VALUE, m_List.GetItemText(itemSelected, COL_UPDATE));
-	m_listProp.SetItemText(7, COL_PROP_VALUE, m_List.GetItemText(itemSelected, COL_HASH));
-
-	m_bDownBin = TRUE;
-	m_bDownSym = TRUE;
-
-	UpdateData(FALSE);
-	::EnableWindow(::GetDlgItem(m_hWnd, IDC_BTN_DOWN), TRUE);
-	::EnableWindow(::GetDlgItem(m_hWnd, IDC_CHECK_BIN), TRUE);
-	::EnableWindow(::GetDlgItem(m_hWnd, IDC_CHECK_PDB), TRUE);
-}
-
-void CWinBinDlg::OnClickList(NMHDR* pNMHDR, LRESULT* pResult)
-{
-	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
-	// TODO: Add your control notification handler code here
-
-	ShowSelectedFileInfo(pNMItemActivate->iItem);
-	*pResult = 0;
-}
-
-
-void CWinBinDlg::OnKeydownList(NMHDR* pNMHDR, LRESULT* pResult)
-{
-	// TODO: Add your control notification handler code here
-	*pResult = 0;
+	CDetailedInfoDlg infoDlg;
+	infoDlg.m_strDetailedInfo = szText;
+	infoDlg.DoModal();
 }
 
 void CWinBinDlg::OnBnClickedCheckPdb()
@@ -830,13 +760,10 @@ void CWinBinDlg::OnBnClickedCheckPdb()
 	else {
 		::EnableWindow(::GetDlgItem(m_hWnd, IDC_BTN_DOWN), TRUE);
 	}
-	// TODO: Add your control notification handler code here
 }
-
 
 void CWinBinDlg::OnBnClickedCheckBin()
 {
-	// TODO: Add your control notification handler code here
 	UpdateData();
 	if (!m_bDownBin) {
 		m_bDownSym = FALSE;
@@ -853,15 +780,39 @@ void CWinBinDlg::OnBnClickedCheckBin()
 
 DWORD WINAPI DownloadThread(LPVOID lp)
 {
-	TCHAR wszText[0x2000];
-	CString strDownloadURL = pWinBinDlg->m_listProp.GetItemText(4, COL_PROP_VALUE);
+	int nItem = (int)lp;
+	CListCtrl* pListDownload = &pWinBinDlg->m_listDownload;
 
-	if (strDownloadURL == L"") {
-		pWinBinDlg->m_StatusBar.SetText(_T("Can't determine download URL"), 3, 0);
-		return 0;
+	TCHAR wszText[0x2000];
+	_tcscpy_s(wszText, pListDownload->GetItemText(nItem, COL_DOWN_HASH));
+
+	char file_hash[0x2000];
+	size_t out_size;
+	size_t size = _tcslen(wszText) + 1;
+	wcstombs_s(&out_size, file_hash, size, wszText, 0x2000);
+
+	UPD_FILE_INFO upd_file_info;
+	upd_file_info.timestamp = 0;
+	upd_file_info.virtual_size = 0;
+	bool bfound = false;
+	for (int i = 0; i < pWinBinDlg->m_upd_download_list.size(); i++) {
+		if (pWinBinDlg->m_upd_download_list[i].hash == file_hash) {
+			upd_file_info = pWinBinDlg->m_upd_download_list[i];
+			bfound = true;
+			break;
+		}
 	}
 
-	TCHAR* wszDownloadURL = strDownloadURL.GetBuffer(strDownloadURL.GetLength());
+	TCHAR wszDownloadURL[0x2000] = L"";
+	CString strFileName = upd_file_info.file_name;
+	MakeSymbolServerUrl(strFileName.GetBuffer(strFileName.GetLength()), upd_file_info.timestamp, upd_file_info.virtual_size, wszDownloadURL);
+
+	CString strDownloadURL = wszDownloadURL;
+	if (strDownloadURL == L"") {
+		InterlockedDecrement((LONG volatile*)&pWinBinDlg->m_nThreadCount);
+		pListDownload->SetItemText(nItem, COL_DOWN_STATUS, _T("Can't determine download URL"));
+		return 0;
+	}
 	
 	TCHAR wszDirPath[MAX_PATH] = L"";
 	GetCurrentDirectory(MAX_PATH, wszDirPath);
@@ -869,7 +820,7 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 	wsprintf(wszDirPath, L"%s\\%s", wszDirPath, L"Downloads");
 	CreateDirectory(wszDirPath, NULL);
 
-	_tcscpy_s(wszText, pWinBinDlg->m_listProp.GetItemText(0, COL_PROP_VALUE));
+	_tcscpy_s(wszText, strFileName.GetBuffer(strFileName.GetLength()));
 	wsprintf(wszDirPath, L"%s\\%s", wszDirPath, wszText);
 	CreateDirectory(wszDirPath, NULL);
 
@@ -881,7 +832,7 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 	_tcscpy_s(wszExtension, wszText + wcslen(wszBinName) - 4 );
 	wszBinName[wcslen(wszBinName) - 4] = 0;
 
-	_tcscpy_s(wszText, pWinBinDlg->m_listProp.GetItemText(2, COL_PROP_VALUE)); // OS Build Version
+	_tcscpy_s(wszText, pListDownload->GetItemText(nItem, COL_DOWN_BUILD_NUM));
 	TCHAR* ptr = wcschr(wszText, L',');
 	if (ptr) *ptr = L'\x00';
 
@@ -891,17 +842,16 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 
 	HANDLE hFile = CreateFile(wszFullFilePath, GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
-		pWinBinDlg->m_StatusBar.SetText(_T("Creating file failed"), 3, 0);
+		InterlockedDecrement((LONG volatile*)&pWinBinDlg->m_nThreadCount);
+		pListDownload->SetItemText(nItem, COL_DOWN_STATUS, _T("Creating file failed"));
 		return 0;
 	}
-		
-	InterlockedIncrement((LONG volatile*)&pWinBinDlg->m_nThreadCount);
 
 	wsprintf(wszText, L"%d", pWinBinDlg->m_nThreadCount);
 	pWinBinDlg->m_StatusBar.SetText(wszText, 1, 0);
 	
-	wsprintf(wszText, L"Downloading %s", wszDownFileName);
-	pWinBinDlg->m_StatusBar.SetText(wszText, 3, 0);
+	wsprintf(wszText, L"Downloading PE ...");
+	pListDownload->SetItemText(nItem, COL_DOWN_STATUS, wszText);
 
 	ULONG status;
 	ULONG dwReaded = 0;
@@ -914,14 +864,14 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 		wsprintf(wszText, L"%d", pWinBinDlg->m_nThreadCount);
 		pWinBinDlg->m_StatusBar.SetText(wszText, 1, 0);
 
-		wsprintf(wszText, L"Downloading %s failed. Check internet connection", wszDownFileName);
-		pWinBinDlg->m_StatusBar.SetText(wszText, 3, 0);
+		wsprintf(wszText, L"Downloading PE failed");
+		pListDownload->SetItemText(nItem, COL_DOWN_STATUS, wszText);
 		DeleteFile(wszFullFilePath);
 		return 0;
 	}
 
-	wsprintf(wszText, L"Downloading %s success", wszDownFileName);
-	pWinBinDlg->m_StatusBar.SetText(wszText, 3, 0);
+	wsprintf(wszText, L"Downloading PE success");
+	pListDownload->SetItemText(nItem, COL_DOWN_STATUS, wszText);
 
 	if (!pWinBinDlg->m_bDownSym) {
 		InterlockedDecrement((LONG volatile*)&pWinBinDlg->m_nThreadCount);
@@ -930,8 +880,9 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 		return 0;
 	}
 
-	wsprintf(wszText, L"Downloading %s symbol", wszDownFileName);
-	pWinBinDlg->m_StatusBar.SetText(wszText, 3, 0);
+	wsprintf(wszText, L"Downloading PDB ...");
+	pListDownload->SetItemText(nItem, COL_DOWN_STATUS, wszText);
+
 	CString strError = _T("Error occured.");
 	BOOL bSuccess = FALSE;
 
@@ -969,7 +920,6 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 		CloseHandle(hFile);
 
 		char szLine[300] = { 0 };
-
 		if (strline(szBuf, szLine) != NULL)
 		{
 			if (strlen(szLine) >= 3)
@@ -981,7 +931,7 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 			else
 			{
 				bSuccess = TRUE;
-				wsprintf(wszText, L"Downloading %s symbol success", wszDownFileName);
+				wsprintf(wszText, L"Downloading PDB success");
 				strError = wszText;
 			}
 		}
@@ -989,7 +939,7 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 	}
 
 	DeleteFile(szTmpFilePath);
-	pWinBinDlg->m_StatusBar.SetText(strError, 3, 0);
+	pListDownload->SetItemText(nItem, COL_DOWN_STATUS, strError);
 
 	InterlockedDecrement((LONG volatile*)&pWinBinDlg->m_nThreadCount);
 	wsprintf(wszText, L"%d", pWinBinDlg->m_nThreadCount);
@@ -998,20 +948,54 @@ DWORD WINAPI DownloadThread(LPVOID lp)
 	return bSuccess;
 }
 
+DWORD WINAPI DownloadListedFiles(LPVOID lp) {
+
+	CListCtrl* pListDownload = &pWinBinDlg->m_listDownload;
+	int nItemCount = pListDownload->GetItemCount();
+
+	pWinBinDlg->m_StatusBar.SetText(L"Downloading files ...", 3, 0);
+
+	CString strStatus;
+	for (int i = 0; i < nItemCount; i++) {
+		strStatus = pListDownload->GetItemText(i, COL_DOWN_STATUS);
+		if (_tcsstr(strStatus.GetBuffer(strStatus.GetLength()), L"...") 
+			|| _tcsstr(strStatus.GetBuffer(strStatus.GetLength()), L"success")) continue;
+
+		while (pWinBinDlg->m_nThreadCount >= 10) {
+			Sleep(20);
+		}
+		if (pMainDlg->m_bExitPending) break;
+		InterlockedIncrement((LONG volatile*)&pWinBinDlg->m_nThreadCount);
+		CreateThread(NULL, 0, DownloadThread, (LPVOID)i, 0, NULL);
+	}
+	
+	while (TRUE)
+	{
+		if (pWinBinDlg->m_nThreadCount == 0)
+			break;
+		Sleep(300);
+	}
+
+	pWinBinDlg->m_StatusBar.SetText(L"Downloading finished.", 3, 0);
+	return 0;
+}
+
 void CWinBinDlg::OnBnClickedBtnDown()
 {
-	// TODO: Add your control notification handler code here
 	if (!m_bDownBin && !m_bDownSym) {
 		return;
 	}
 
-	CreateThread(NULL, 0, DownloadThread, NULL, 0, NULL);
+	if (m_listDownload.GetItemCount() == 0) {
+		return;
+	}
+
+	CreateThread(NULL, 0, DownloadListedFiles, NULL, 0, NULL);
 }
 
 
 void CWinBinDlg::OnChangeEditSearach()
 {
-	// TODO:  Add your control notification handler code here
 	ShowUpdFileInfoList();
 }
 
@@ -1022,7 +1006,6 @@ DWORD WINAPI ExitThread(LPVOID lp) {
 
 void CWinBinDlg::OnBnClickedBtnExit()
 {
-	// TODO: Add your control notification handler code here
 	if (pMainDlg->m_bExitPending) {
 		return;
 	}
@@ -1031,4 +1014,357 @@ void CWinBinDlg::OnBnClickedBtnExit()
 		pMainDlg->m_bExitPending = TRUE;
 		CreateThread(NULL, 0, ExitThread, NULL, 0, NULL);
 	}
+}
+
+
+void CWinBinDlg::OnRButtonDown(UINT nFlags, CPoint point)
+{
+	RECT listRect;
+	m_List.GetWindowRect(&listRect);
+	CDialogEx::OnRButtonDown(nFlags, point);
+}
+
+
+void CWinBinDlg::OnRclickList(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+	*pResult = 0;
+	if (m_List.GetSelectedCount() == 0) {
+		return;
+	}
+	
+	CPoint pt1, pt2;
+	CPoint pt;
+	GetCursorPos(&pt1);
+	pt2 = pt1;
+
+	m_List.ScreenToClient(&pt1);
+
+	CMenu menu;
+	if (menu.LoadMenu(IDR_MENU_OPERATION))
+	{
+		CMenu* pMenum_Tree = menu.GetSubMenu(0);
+		
+		if (m_List.GetSelectedCount() > 1) {
+			pMenum_Tree->EnableMenuItem(0, MF_BYPOSITION | MF_DISABLED | MF_GRAYED);
+		}
+		
+		pMenum_Tree->TrackPopupMenu(TPM_LEFTALIGN, pt2.x, pt2.y, this);
+	}
+
+}
+
+void CWinBinDlg::OnOperationViewinfo()
+{
+	int itemSelected = (int)m_List.GetFirstSelectedItemPosition() - 1;
+	ShowSelectedFileInfo(itemSelected);
+
+}
+
+void CWinBinDlg::OnDblclkList(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+	ShowSelectedFileInfo(pNMItemActivate->iItem);
+	*pResult = 0;
+}
+
+
+void CWinBinDlg::OnOperationAddto()
+{
+	int nItemCnt = m_List.GetItemCount();
+
+	LV_ITEM lvitem;
+	TCHAR wszText[0x2000];
+	char file_hash[0x2000];
+	size_t out_size;
+
+	for (int i = 0; i < nItemCnt; i++) {
+		if (m_List.GetItemState(i, LVIS_SELECTED)) {
+			CString strHash = m_List.GetItemText(i, COL_HASH);
+			bool already_queued = false;
+			for (int index = 0; index < m_listDownload.GetItemCount(); index++) {
+				if (m_listDownload.GetItemText(index, COL_DOWN_HASH) == strHash) {
+					already_queued = true;
+					break;
+				}
+			}
+
+			if (already_queued) continue;
+
+			_tcscpy_s(wszText, strHash.GetBuffer(strHash.GetLength()));
+			size_t size = _tcslen(wszText) + 1;
+			wcstombs_s(&out_size, file_hash, size, wszText, 0x2000);
+
+			UPD_FILE_INFO upd_file_info;
+			upd_file_info.timestamp = 0;
+			upd_file_info.virtual_size = 0;
+			bool bfound = false;
+			for (int i = 0; i < pWinBinDlg->m_upd_file_info_list.size(); i++) {
+				if (pWinBinDlg->m_upd_file_info_list[i].hash == file_hash) {
+					upd_file_info = pWinBinDlg->m_upd_file_info_list[i];
+					bfound = true;
+					break;
+				}
+			}
+
+			if (!bfound) continue;
+
+			m_upd_download_list.push_back(upd_file_info);
+
+			lvitem.mask = LVIF_TEXT | LVIF_IMAGE | LVIF_STATE;
+			lvitem.iSubItem = 0;
+			lvitem.stateMask = LVIS_STATEIMAGEMASK;
+			lvitem.state = INDEXTOSTATEIMAGEMASK(1);
+			lvitem.iImage = 2;
+			lvitem.iItem = m_listDownload.GetItemCount();
+			lvitem.pszText = wszText;
+			int nIndex = m_listDownload.InsertItem(&lvitem);
+
+			_stprintf_s(wszText, _T("%d"), nIndex + 1);
+			m_listDownload.SetItemText(nIndex, COL_DOWN_NUM, wszText);
+			m_listDownload.SetItemText(nIndex, COL_DOWN_FILENAME, upd_file_info.file_name);
+			m_listDownload.SetItemText(nIndex, COL_DOWN_BUILD_NUM, m_List.GetItemText(i, COL_OS_BUILD_NUM));
+			m_listDownload.SetItemText(nIndex, COL_DOWN_HASH, strHash);
+
+		}
+	}
+}
+
+DWORD WINAPI DownloadSelectedFiles(LPVOID lp) {
+
+	int nInsertedCnt = (int)lp;
+	CListCtrl* pListDownload = &pWinBinDlg->m_listDownload;
+	
+	int nItemCnt = pListDownload->GetItemCount();
+	pWinBinDlg->m_StatusBar.SetText(L"Downloading files ...", 3, 0);
+
+	CString strStatus;
+	for (int i = nItemCnt - nInsertedCnt; i < nItemCnt; i++) {
+		strStatus = pListDownload->GetItemText(i, COL_DOWN_STATUS);
+		if (_tcsstr(strStatus.GetBuffer(strStatus.GetLength()), L"...")
+			|| _tcsstr(strStatus.GetBuffer(strStatus.GetLength()), L"success")) continue;
+
+		while (pWinBinDlg->m_nThreadCount >= 10) {
+			Sleep(20);
+		}
+		if (pMainDlg->m_bExitPending) break;
+
+		InterlockedIncrement((LONG volatile*)&pWinBinDlg->m_nThreadCount);
+		CreateThread(NULL, 0, DownloadThread, (LPVOID)i, 0, NULL);
+	}
+
+	while (TRUE)
+	{
+		if (pWinBinDlg->m_nThreadCount == 0)
+			break;
+		Sleep(300);
+	}
+	
+	pWinBinDlg->m_StatusBar.SetText(L"Downloading finished.", 3, 0);
+
+	return 0;
+}
+
+void CWinBinDlg::OnOperationDownload(BOOL bOnlyBin) {
+	int nItemCnt = m_List.GetItemCount();
+	int nInsertedCnt = 0;
+	LV_ITEM lvitem;
+	TCHAR wszText[0x2000];
+
+	char file_hash[0x2000];
+	size_t out_size;
+
+	for (int i = 0; i < nItemCnt; i++) {
+		if (m_List.GetItemState(i, LVIS_SELECTED)) {
+			CString strHash = m_List.GetItemText(i, COL_HASH);
+			bool already_queued = false;
+			for (int index = 0; index < m_listDownload.GetItemCount(); index++) {
+				if (m_listDownload.GetItemText(index, COL_DOWN_HASH) == strHash) {
+					already_queued = true;
+					break;
+				}
+			}
+
+			if (already_queued) continue;
+
+			_tcscpy_s(wszText, strHash.GetBuffer(strHash.GetLength()));
+			size_t size = _tcslen(wszText) + 1;
+			wcstombs_s(&out_size, file_hash, size, wszText, 0x2000);
+
+			UPD_FILE_INFO upd_file_info;
+			upd_file_info.timestamp = 0;
+			upd_file_info.virtual_size = 0;
+			bool bfound = false;
+			for (int i = 0; i < pWinBinDlg->m_upd_file_info_list.size(); i++) {
+				if (pWinBinDlg->m_upd_file_info_list[i].hash == file_hash) {
+					upd_file_info = pWinBinDlg->m_upd_file_info_list[i];
+					bfound = true;
+					break;
+				}
+			}
+
+			if (!bfound) continue;
+
+			m_upd_download_list.push_back(upd_file_info);
+
+			lvitem.mask = LVIF_TEXT | LVIF_IMAGE | LVIF_STATE;
+			lvitem.iSubItem = 0;
+			lvitem.stateMask = LVIS_STATEIMAGEMASK;
+			lvitem.state = INDEXTOSTATEIMAGEMASK(1);
+			lvitem.iImage = 2;
+			lvitem.iItem = m_listDownload.GetItemCount();
+			lvitem.pszText = wszText;
+			int nIndex = m_listDownload.InsertItem(&lvitem);
+
+			_stprintf_s(wszText, _T("%d"), nIndex + 1);
+			m_listDownload.SetItemText(nIndex, COL_DOWN_NUM, wszText);
+			m_listDownload.SetItemText(nIndex, COL_DOWN_FILENAME, upd_file_info.file_name);
+			m_listDownload.SetItemText(nIndex, COL_DOWN_BUILD_NUM, m_List.GetItemText(i, COL_OS_BUILD_NUM));
+			m_listDownload.SetItemText(nIndex, COL_DOWN_HASH, strHash);
+
+			nInsertedCnt++;
+		}
+	}
+
+	if (bOnlyBin) {
+		m_bDownBin = TRUE;
+		m_bDownSym = FALSE;
+	}
+	else {
+		m_bDownBin = TRUE;
+		m_bDownSym = TRUE;
+	}
+
+	UpdateData(FALSE);
+	CreateThread(NULL, 0, DownloadSelectedFiles, (LPVOID)nInsertedCnt, 0, NULL);
+}
+void CWinBinDlg::OnOperationDownloadbinary()
+{
+	OnOperationDownload(TRUE);
+}
+
+
+void CWinBinDlg::OnDownloadBinarysymbol()
+{
+	OnOperationDownload(FALSE);
+}
+
+
+void CWinBinDlg::OnRclickListDownload(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+	*pResult = 0;
+
+	CPoint pt1, pt2;
+	CPoint pt;
+	GetCursorPos(&pt1);
+	pt2 = pt1;
+
+	m_listDownload.ScreenToClient(&pt1);
+
+	CMenu menu;
+	if (menu.LoadMenu(IDR_MENU_DOWN_LIST))
+	{
+		CMenu* pMenum_Tree = menu.GetSubMenu(0);
+		if (m_listDownload.GetSelectedCount() == 0 ) {
+			pMenum_Tree->EnableMenuItem(0, MF_BYPOSITION | MF_DISABLED | MF_GRAYED);
+		}
+
+		if (m_listDownload.GetItemCount() == 0 ) {
+			pMenum_Tree->EnableMenuItem(1, MF_BYPOSITION | MF_DISABLED | MF_GRAYED);
+		}
+
+		TCHAR wszText[0x2000];
+		CString strStatus = m_listDownload.GetItemText((int)m_listDownload.GetFirstSelectedItemPosition() - 1, COL_DOWN_STATUS);
+
+		_tcscpy_s(wszText, strStatus.GetBuffer(strStatus.GetLength()));
+		if (m_listDownload.GetSelectedCount() != 1 || !_tcsstr(wszText, L"success")) {
+			pMenum_Tree->EnableMenuItem(3, MF_BYPOSITION | MF_DISABLED | MF_GRAYED);
+		}
+
+		pMenum_Tree->TrackPopupMenu(TPM_LEFTALIGN, pt2.x, pt2.y, this);
+	}
+}
+
+
+void CWinBinDlg::OnDlRemove()
+{
+	if (m_nThreadCount > 0) {
+		AfxMessageBox(L"Please try again after busy threads terminated.");
+		return;
+	}
+
+	LV_ITEM lvitem;
+	TCHAR wszText[0x2000];
+
+	char file_hash[0x2000];
+	size_t out_size;
+	for (int i = 0; i < m_listDownload.GetItemCount(); i++) {
+		if (m_listDownload.GetItemState(i, LVIS_SELECTED)) {
+			CString strHash = m_listDownload.GetItemText(i, COL_DOWN_HASH);
+
+			_tcscpy_s(wszText, strHash.GetBuffer(strHash.GetLength()));
+			size_t size = _tcslen(wszText) + 1;
+			wcstombs_s(&out_size, file_hash, size, wszText, 0x2000);
+
+			UPD_FILE_INFO upd_file_info;
+			upd_file_info.timestamp = 0;
+			upd_file_info.virtual_size = 0;
+			bool bfound = false;
+			for (int i = 0; i < pWinBinDlg->m_upd_download_list.size(); i++) {
+				if (pWinBinDlg->m_upd_download_list[i].hash == file_hash) {
+					upd_file_info = pWinBinDlg->m_upd_download_list[i];
+					bfound = true;
+					break;
+				}
+			}
+
+			if (!bfound) continue;
+			
+			pWinBinDlg->m_upd_download_list.erase(std::find(pWinBinDlg->m_upd_download_list.begin(), pWinBinDlg->m_upd_download_list.end(), upd_file_info));
+			m_listDownload.DeleteItem(i);
+			i--;
+		}
+	}
+
+	for (int i = 0; i < m_listDownload.GetItemCount(); i ++) {
+		_stprintf_s(wszText, _T("%d"), i + 1);
+		m_listDownload.SetItemText(i, COL_DOWN_NUM, wszText);
+	}
+
+
+}
+
+
+void CWinBinDlg::OnDlClearall()
+{
+	if (m_nThreadCount > 0) {
+		AfxMessageBox(L"Please try again after busy threads terminated.");
+		return;
+	}
+	m_upd_download_list.clear();
+	m_listDownload.DeleteAllItems();
+}
+
+
+void CWinBinDlg::OnDlOpenfilelocation()
+{
+	TCHAR wszDirPath[MAX_PATH] = L"";
+	GetCurrentDirectory(MAX_PATH, wszDirPath);
+
+	wsprintf(wszDirPath, L"%s\\%s", wszDirPath, L"Downloads");
+	CString strFileName = m_listDownload.GetItemText((int)m_listDownload.GetFirstSelectedItemPosition() - 1, COL_DOWN_FILENAME);
+	wsprintf(wszDirPath, L"%s\\%s", wszDirPath, strFileName.GetBuffer(strFileName.GetLength()));
+
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+
+	TCHAR cmdline[1024] = { 0 };
+	wsprintf(cmdline, _T("explorer.exe %s"), wszDirPath);
+
+	CreateProcess(NULL, cmdline, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
 }

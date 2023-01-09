@@ -6,7 +6,7 @@
 #include "GetSymbol.h"
 #include "CMainDlg.h"
 #include "afxdialogex.h"
-
+#include "CUpdateDlg.h"
 
 // CMainDlg dialog
 
@@ -37,13 +37,11 @@ END_MESSAGE_MAP()
 
 
 DWORD WINAPI UpdateCheckThread(LPVOID lp) {
-
 	ULONG status;
-
 	TCHAR* lpStringBuffer = NULL;
 
 	status = BeginDownload(UPDATE_CHECK_URL, NULL, &lpStringBuffer);
-	
+
 	if (status != ERROR_SUCCESS) {
 		return status;
 	}
@@ -60,10 +58,10 @@ DWORD WINAPI UpdateCheckThread(LPVOID lp) {
 	wsprintf(lpszAppNameVersion, L"%s %s", APP_NAME, APP_VERSION);
 
 	if (wcscmp(lpszVersionInfo, lpszAppNameVersion) > 0) {
-		TCHAR msg[MAX_PATH] = L"Update available. Download and install now?\r\n\r\n";
-		wcscat(msg, lpszVersionInfo);
+		CUpdateDlg updateDlg;
+		updateDlg.m_strNewVersion = lpszVersionInfo;
 
-		if (MessageBoxW(0, msg, APP_NAME, MB_YESNO | MB_ICONINFORMATION) == IDYES) {
+		if (updateDlg.DoModal() == IDOK) {
 			TCHAR szModuleFileName[MAX_PATH];
 			TCHAR szNewFileName[MAX_PATH];
 			GetModuleFileName(NULL, szModuleFileName, MAX_PATH);
@@ -76,8 +74,15 @@ DWORD WINAPI UpdateCheckThread(LPVOID lp) {
 
 			if (hFile != INVALID_HANDLE_VALUE)
 			{
-				BeginDownload(lpszUpdateURL, hFile, NULL);
+				status = BeginDownload(lpszUpdateURL, hFile, NULL);
 				CloseHandle(hFile);
+
+				if (status != ERROR_SUCCESS) {
+					DeleteFile(szModuleFileName);
+					MoveFile(szNewFileName, szModuleFileName);
+					AfxMessageBox(L"Update failed.");
+					return status;
+				}
 
 				STARTUPINFO si;
 				PROCESS_INFORMATION pi;
@@ -120,6 +125,7 @@ BOOL CMainDlg::OnInitDialog()
 }
 
 void CMainDlg::Close() {
+
 	TerminateThread(pGetSymbolDlg->m_hMainThread, 0);
 	pGetSymbolDlg->m_hMainThread = NULL;
 

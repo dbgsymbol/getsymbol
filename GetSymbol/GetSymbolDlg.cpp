@@ -238,7 +238,6 @@ BOOL CGetSymbolDlg::PreTranslateMessage(MSG* pMsg)
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
 
-
 void CGetSymbolDlg::OnBnClickedBtnSrc()
 {
 	ITEMIDLIST		*pidlBrowse;

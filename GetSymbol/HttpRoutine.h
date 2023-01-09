@@ -9,10 +9,11 @@
 #pragma comment(lib, "winhttp.lib")
 
 #define APP_NAME L"GetSymbol"
-#define APP_VERSION L"2.0.1"
+#define APP_VERSION L"2.0.2"
 
 #define UPDATE_CHECK_URL L"https://dbgsymbol.com/version"
 #define WEBSITE_URL L"https://dbgsymbol.com"
+#define WINBINDEX_DATA_URL L"https://winbindex.m417z.com/data"
 
 HINTERNET CreateSession();
 
